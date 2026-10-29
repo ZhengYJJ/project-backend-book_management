@@ -1,0 +1,47 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: bms-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-Book@123456}
+      MYSQL_DATABASE: book_management
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    # 建议仅本机访问数据库端口；如需远程管理改为 "3306:3306"
+    ports:
+      - "127.0.0.1:3306:3306"
+
+  app:
+    build: .
+    container_name: bms-app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Shanghai
+      # 通过系统属性覆盖 jdbc.properties 中的默认值（applicationContext.xml 已配置 OVERRIDE 模式）
+      JAVA_OPTS: >-
+        -Djdbc.host=mysql
+        -Djdbc.port=3306
+        -Djdbc.db=book_management
+        -Djdbc.username=root
+        -Djdbc.password=${MYSQL_ROOT_PASSWORD:-Book@123456}
+    ports:
+      - "8080:8080"
+
+volumes:
+  mysql-data:

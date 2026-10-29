@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.library.mapper.ReaderTypeMapper">
+
+    <resultMap id="BaseResultMap" type="com.library.entity.ReaderType">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="maxBooks" column="max_books"/>
+        <result property="loanDays" column="loan_days"/>
+        <result property="renewLimit" column="renew_limit"/>
+        <result property="finePerDay" column="fine_per_day"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM reader_type ORDER BY id
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM reader_type WHERE id = #{id}
+    </select>
+</mapper>

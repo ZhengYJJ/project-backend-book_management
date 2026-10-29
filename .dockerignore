@@ -1,0 +1,11 @@
+target/
+.git/
+.idea/
+*.iml
+.settings/
+.classpath
+.project
+logs/
+.env
+prd_build/
+docker/mysql/data/

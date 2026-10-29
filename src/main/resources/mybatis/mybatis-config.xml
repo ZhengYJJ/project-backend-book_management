@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+    <settings>
+        <!-- 下划线列名自动映射为驼峰属性（book_title -> bookTitle） -->
+        <setting name="mapUnderscoreToCamelCase" value="true"/>
+        <!-- 允许 INSERT/UPDATE 中向数据库传递 NULL 值 -->
+        <setting name="jdbcTypeForNull" value="NULL"/>
+    </settings>
+</configuration>

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.library.mapper.BookCopyMapper">
+
+    <resultMap id="BaseResultMap" type="com.library.entity.BookCopy">
+        <id property="id" column="id"/>
+        <result property="bookId" column="book_id"/>
+        <result property="barcode" column="barcode"/>
+        <result property="location" column="location"/>
+        <result property="status" column="status"/>
+        <result property="remark" column="remark"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="bookTitle" column="book_title"/>
+        <result property="bookIsbn" column="book_isbn"/>
+    </resultMap>
+
+    <sql id="pageWhere">
+        <where>
+            <if test="bookId != null">AND c.book_id = #{bookId}</if>
+            <if test="status != null">AND c.status = #{status}</if>
+            <if test="barcode != null and barcode != ''">AND c.barcode LIKE CONCAT('%', #{barcode}, '%')</if>
+        </where>
+    </sql>
+
+    <select id="selectByPage" resultMap="BaseResultMap">
+        SELECT c.*, b.title AS book_title, b.isbn AS book_isbn
+        FROM book_copy c
+        LEFT JOIN book b ON c.book_id = b.id
+        <include refid="pageWhere"/>
+        ORDER BY c.id DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*)
+        FROM book_copy c
+        <include refid="pageWhere"/>
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT c.*, b.title AS book_title, b.isbn AS book_isbn
+        FROM book_copy c
+        LEFT JOIN book b ON c.book_id = b.id
+        WHERE c.id = #{id}
+    </select>
+
+    <select id="selectByBarcode" resultMap="BaseResultMap">
+        SELECT c.*, b.title AS book_title, b.isbn AS book_isbn
+        FROM book_copy c
+        LEFT JOIN book b ON c.book_id = b.id
+        WHERE c.barcode = #{barcode} LIMIT 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO book_copy (book_id, barcode, location, status, remark)
+        VALUES (#{bookId}, #{barcode}, #{location}, #{status}, #{remark})
+    </insert>
+
+    <!-- 插入后回填自动生成的条码号 -->
+    <update id="updateBarcode">
+        UPDATE book_copy SET barcode = #{barcode} WHERE id = #{id}
+    </update>
+
+    <update id="update">
+        UPDATE book_copy
+        <set>
+            <if test="location != null">location = #{location},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <select id="countInStock" resultType="int">
+        SELECT COUNT(*) FROM book_copy WHERE book_id = #{bookId} AND status = 0
+    </select>
+
+    <select id="countTotal" resultType="int">
+        SELECT COUNT(*) FROM book_copy WHERE book_id = #{bookId} AND status != 5
+    </select>
+</mapper>

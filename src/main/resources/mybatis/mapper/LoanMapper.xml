@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.library.mapper.LoanMapper">
+
+    <resultMap id="BaseResultMap" type="com.library.entity.Loan">
+        <id property="id" column="id"/>
+        <result property="readerId" column="reader_id"/>
+        <result property="copyId" column="copy_id"/>
+        <result property="borrowedAt" column="borrowed_at"/>
+        <result property="dueAt" column="due_at"/>
+        <result property="returnedAt" column="returned_at"/>
+        <result property="renewCount" column="renew_count"/>
+        <result property="overdueDays" column="overdue_days"/>
+        <result property="fine" column="fine"/>
+        <result property="status" column="status"/>
+        <result property="remark" column="remark"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="readerName" column="reader_name"/>
+        <result property="readerNo" column="reader_no"/>
+        <result property="barcode" column="barcode"/>
+        <result property="bookId" column="book_id"/>
+        <result property="bookTitle" column="book_title"/>
+    </resultMap>
+
+    <sql id="selectWithJoins">
+        SELECT l.*,
+               r.name      AS reader_name,
+               r.reader_no AS reader_no,
+               c.barcode   AS barcode,
+               c.book_id   AS book_id,
+               b.title     AS book_title
+        FROM loan l
+        LEFT JOIN reader r     ON l.reader_id = r.id
+        LEFT JOIN book_copy c  ON l.copy_id = c.id
+        LEFT JOIN book b       ON c.book_id = b.id
+    </sql>
+
+    <sql id="pageWhere">
+        <where>
+            <if test="readerId != null">AND l.reader_id = #{readerId}</if>
+            <if test="status != null">AND l.status = #{status}</if>
+            <if test="keyword != null and keyword != ''">
+                AND (r.name LIKE CONCAT('%', #{keyword}, '%')
+                  OR r.reader_no LIKE CONCAT('%', #{keyword}, '%')
+                  OR c.barcode LIKE CONCAT('%', #{keyword}, '%')
+                  OR b.title LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+    </sql>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        <include refid="selectWithJoins"/>
+        WHERE l.id = #{id}
+    </select>
+
+    <select id="selectByPage" resultMap="BaseResultMap">
+        <include refid="selectWithJoins"/>
+        <include refid="pageWhere"/>
+        ORDER BY l.id DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*)
+        FROM loan l
+        LEFT JOIN reader r    ON l.reader_id = r.id
+        LEFT JOIN book_copy c ON l.copy_id = c.id
+        LEFT JOIN book b      ON c.book_id = b.id
+        <include refid="pageWhere"/>
+    </select>
+
+    <select id="selectActiveByCopyId" resultMap="BaseResultMap">
+        <include refid="selectWithJoins"/>
+        WHERE l.copy_id = #{copyId} AND l.status IN (0, 2) LIMIT 1
+    </select>
+
+    <select id="selectActiveByReaderId" resultMap="BaseResultMap">
+        <include refid="selectWithJoins"/>
+        WHERE l.reader_id = #{readerId} AND l.status IN (0, 2)
+        ORDER BY l.due_at
+    </select>
+
+    <select id="countActiveByReaderId" resultType="int">
+        SELECT COUNT(*) FROM loan WHERE reader_id = #{readerId} AND status IN (0, 2)
+    </select>
+
+    <select id="countOverdueByReaderId" resultType="int">
+        SELECT COUNT(*) FROM loan WHERE reader_id = #{readerId} AND status = 2
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO loan (reader_id, copy_id, borrowed_at, due_at, returned_at,
+                          renew_count, overdue_days, fine, status, remark)
+        VALUES (#{readerId}, #{copyId}, #{borrowedAt}, #{dueAt}, #{returnedAt},
+                #{renewCount}, #{overdueDays}, #{fine}, #{status}, #{remark})
+    </insert>
+
+    <update id="updateReturn">
+        UPDATE loan
+        SET returned_at = #{returnedAt},
+            overdue_days = #{overdueDays},
+            fine         = #{fine},
+            status       = #{status},
+            remark       = #{remark}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateRenew">
+        UPDATE loan
+        SET due_at      = #{dueAt},
+            renew_count = #{renewCount}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateOverdue">
+        UPDATE loan
+        SET status       = 2,
+            overdue_days = #{overdueDays},
+            fine         = #{fine}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 待扫描的逾期在借记录（FR-CIRC-005） -->
+    <select id="selectDuePassed" resultMap="BaseResultMap">
+        <include refid="selectWithJoins"/>
+        WHERE l.status = 0 AND l.due_at &lt; #{now}
+    </select>
+
+    <!-- ============ 统计（FR-RPT-001 / 002） ============ -->
+    <select id="selectTopBorrowed" resultType="java.util.HashMap">
+        SELECT b.title AS bookTitle, b.author AS author, COUNT(*) AS borrowCount
+        FROM loan l
+        LEFT JOIN book_copy c ON l.copy_id = c.id
+        LEFT JOIN book b      ON c.book_id = b.id
+        <where>
+            b.id IS NOT NULL
+            <if test="days != null">AND l.borrowed_at &gt;= DATE_SUB(NOW(), INTERVAL #{days} DAY)</if>
+        </where>
+        GROUP BY b.id, b.title, b.author
+        ORDER BY borrowCount DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectMonthlyCount" resultType="java.util.HashMap">
+        SELECT DATE_FORMAT(l.borrowed_at, '%Y-%m') AS month,
+               COUNT(*)                            AS borrowCount,
+               SUM(CASE WHEN l.status = 1 THEN 1 ELSE 0 END) AS returnCount
+        FROM loan l
+        WHERE l.borrowed_at &gt;= DATE_SUB(DATE_FORMAT(NOW(), '%Y-%m-01'), INTERVAL #{months} MONTH)
+        GROUP BY month
+        ORDER BY month
+    </select>
+</mapper>

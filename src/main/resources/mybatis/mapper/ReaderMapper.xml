@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.library.mapper.ReaderMapper">
+
+    <resultMap id="BaseResultMap" type="com.library.entity.Reader">
+        <id property="id" column="id"/>
+        <result property="readerNo" column="reader_no"/>
+        <result property="name" column="name"/>
+        <result property="idCard" column="id_card"/>
+        <result property="phone" column="phone"/>
+        <result property="dept" column="dept"/>
+        <result property="typeId" column="type_id"/>
+        <result property="status" column="status"/>
+        <result property="remark" column="remark"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="typeName" column="type_name"/>
+        <result property="activeLoans" column="active_loans"/>
+    </resultMap>
+
+    <sql id="pageWhere">
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (r.name LIKE CONCAT('%', #{keyword}, '%')
+                  OR r.reader_no LIKE CONCAT('%', #{keyword}, '%')
+                  OR r.phone LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null">AND r.status = #{status}</if>
+        </where>
+    </sql>
+
+    <select id="selectByPage" resultMap="BaseResultMap">
+        SELECT r.*, t.name AS type_name,
+               (SELECT COUNT(*) FROM loan l WHERE l.reader_id = r.id AND l.status IN (0, 2)) AS active_loans
+        FROM reader r
+        LEFT JOIN reader_type t ON r.type_id = t.id
+        <include refid="pageWhere"/>
+        ORDER BY r.id DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM reader r
+        <include refid="pageWhere"/>
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT r.*, t.name AS type_name
+        FROM reader r
+        LEFT JOIN reader_type t ON r.type_id = t.id
+        WHERE r.id = #{id}
+    </select>
+
+    <select id="selectByReaderNo" resultMap="BaseResultMap">
+        SELECT r.*, t.name AS type_name
+        FROM reader r
+        LEFT JOIN reader_type t ON r.type_id = t.id
+        WHERE r.reader_no = #{readerNo} LIMIT 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO reader (reader_no, name, id_card, phone, dept, type_id, status, remark)
+        VALUES (#{readerNo}, #{name}, #{idCard}, #{phone}, #{dept}, #{typeId}, #{status}, #{remark})
+    </insert>
+
+    <!-- 插入后回填自动生成的读者证号 -->
+    <update id="updateReaderNo">
+        UPDATE reader SET reader_no = #{readerNo} WHERE id = #{id}
+    </update>
+
+    <update id="update">
+        UPDATE reader
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="idCard != null">id_card = #{idCard},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="dept != null">dept = #{dept},</if>
+            <if test="typeId != null">type_id = #{typeId},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE reader SET status = #{status} WHERE id = #{id}
+    </update>
+</mapper>

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.library.mapper.BookMapper">
+
+    <resultMap id="BaseResultMap" type="com.library.entity.Book">
+        <id property="id" column="id"/>
+        <result property="isbn" column="isbn"/>
+        <result property="title" column="title"/>
+        <result property="author" column="author"/>
+        <result property="publisher" column="publisher"/>
+        <result property="publishYear" column="publish_year"/>
+        <result property="category" column="category"/>
+        <result property="subject" column="subject"/>
+        <result property="summary" column="summary"/>
+        <result property="price" column="price"/>
+        <result property="deleted" column="deleted"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="totalCopies" column="total_copies"/>
+        <result property="inStockCopies" column="in_stock_copies"/>
+    </resultMap>
+
+    <sql id="pageWhere">
+        <where>
+            b.deleted = 0
+            <if test="keyword != null and keyword != ''">
+                AND (b.title LIKE CONCAT('%', #{keyword}, '%')
+                  OR b.author LIKE CONCAT('%', #{keyword}, '%')
+                  OR b.isbn LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="category != null and category != ''">
+                AND b.category = #{category}
+            </if>
+        </where>
+    </sql>
+
+    <select id="selectByPage" resultMap="BaseResultMap">
+        SELECT b.*,
+               (SELECT COUNT(*) FROM book_copy c WHERE c.book_id = b.id AND c.status != 5) AS total_copies,
+               (SELECT COUNT(*) FROM book_copy c WHERE c.book_id = b.id AND c.status = 0)  AS in_stock_copies
+        FROM book b
+        <include refid="pageWhere"/>
+        ORDER BY b.id DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM book b
+        <include refid="pageWhere"/>
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT b.*,
+               (SELECT COUNT(*) FROM book_copy c WHERE c.book_id = b.id AND c.status != 5) AS total_copies,
+               (SELECT COUNT(*) FROM book_copy c WHERE c.book_id = b.id AND c.status = 0)  AS in_stock_copies
+        FROM book b
+        WHERE b.id = #{id} AND b.deleted = 0
+    </select>
+
+    <select id="selectByIsbn" resultMap="BaseResultMap">
+        SELECT * FROM book WHERE isbn = #{isbn} AND deleted = 0 LIMIT 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO book (isbn, title, author, publisher, publish_year, category, subject, summary, price)
+        VALUES (#{isbn}, #{title}, #{author}, #{publisher}, #{publishYear}, #{category}, #{subject}, #{summary}, #{price})
+    </insert>
+
+    <update id="update">
+        UPDATE book
+        <set>
+            <if test="isbn != null">isbn = #{isbn},</if>
+            <if test="title != null">title = #{title},</if>
+            <if test="author != null">author = #{author},</if>
+            <if test="publisher != null">publisher = #{publisher},</if>
+            <if test="publishYear != null">publish_year = #{publishYear},</if>
+            <if test="category != null">category = #{category},</if>
+            <if test="subject != null">subject = #{subject},</if>
+            <if test="summary != null">summary = #{summary},</if>
+            <if test="price != null">price = #{price},</if>
+        </set>
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <!-- 软删除（FR-BOOK-007） -->
+    <update id="deleteById">
+        UPDATE book SET deleted = 1 WHERE id = #{id}
+    </update>
+</mapper>
